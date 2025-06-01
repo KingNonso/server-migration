@@ -3,9 +3,32 @@
 # =============================================================================
 # ROBUST SERVER MIGRATION SCRIPT - Digital Ocean to Hetzner Cloud
 # =============================================================================
-# This script migrates nginx, uwsgi, django, nextjs configs, cron jobs, 
-# docker containers, volumes, and application files from source to destination
-# Run this script from the DESTINATION (Hetzner) server
+#
+# Description:
+#   Comprehensive server migration tool that handles the transfer of:
+#   - Web server configurations (Nginx)
+#   - Application servers (uWSGI)
+#   - Web applications (Django, Next.js)
+#   - Scheduled tasks (Cron jobs)
+#   - Containerized applications (Docker)
+#   - File systems and volumes
+#   - System configurations and services
+#
+# Usage:
+#   ./core.sh [--dry-run] [--skip-nginx] [--skip-uwsgi] [--skip-docker]
+#
+# Options:
+#   --dry-run       Run without making actual changes
+#   --skip-nginx    Skip Nginx configuration migration
+#   --skip-uwsgi    Skip uWSGI configuration migration
+#   --skip-docker   Skip Docker container migration
+#
+# Prerequisites:
+#   - SSH access to source server
+#   - Root/sudo privileges on both servers
+#   - Required services installed on destination
+#
+# Note: Run this script from the DESTINATION server
 # =============================================================================
 
 # Don't exit on errors, we'll handle them gracefully

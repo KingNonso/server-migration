@@ -1,7 +1,44 @@
 #!/bin/bash
 
-# Server Migration Script - Run from Hetzner Cloud server
-# Pulls files from Digital Ocean /root to local /root
+# =============================================================================
+# SERVER MIGRATION COORDINATOR SCRIPT
+# =============================================================================
+#
+# Description:
+#   Master script that coordinates the entire server migration process:
+#   - Orchestrates database, web server, and application migrations
+#   - Handles file transfers and synchronization
+#   - Manages service transitions
+#   - Validates migration success
+#
+# Usage:
+#   ./migration.sh [options]
+#
+# Options:
+#   -s, --source HOST       Source server hostname/IP
+#   -k, --key FILE         SSH private key file
+#   -u, --user USER        SSH username (default: root)
+#   -p, --path PATH        Source path (default: /root)
+#   -d, --dest PATH        Destination path (default: /root)
+#   --no-backup           Skip backup of existing files
+#   --tar                 Use tar instead of rsync
+#   -v, --verbose         Show detailed progress
+#   -h, --help            Display this help message
+#
+# Features:
+#   - Automatic space verification
+#   - Incremental file transfer
+#   - Existing file backup
+#   - Progress monitoring
+#   - Detailed logging
+#   - Migration verification
+#
+# Examples:
+#   ./migration.sh -s 192.168.1.10 -k ~/.ssh/id_rsa
+#   ./migration.sh --source old-server --tar --verbose
+#
+# Note: Run this script on the destination (Hetzner) server
+# =============================================================================
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 

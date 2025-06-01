@@ -1,7 +1,44 @@
 #!/bin/bash
 
-# PostgreSQL Installation Script for Hetzner Cloud Server
-# Supports Ubuntu 20.04/22.04 and Debian 10/11
+# =============================================================================
+# POSTGRESQL INSTALLATION AND CONFIGURATION SCRIPT
+# =============================================================================
+#
+# Description:
+#   Automated PostgreSQL installation and configuration script that:
+#   - Installs PostgreSQL with optimal settings
+#   - Configures for production use
+#   - Sets up security and remote access
+#   - Installs common extensions and tools
+#
+# Supported Systems:
+#   - Ubuntu 20.04/22.04
+#   - Debian 10/11
+#   - RHEL/CentOS 7/8 (experimental)
+#
+# Usage:
+#   ./install_postgres.sh [options]
+#
+# Options:
+#   --version VERSION    PostgreSQL version to install (12-16)
+#   --no-firewall       Skip firewall configuration
+#   --no-remote         Skip remote access setup
+#   --help              Display this help message
+#
+# Features:
+#   - Automatic system detection
+#   - Memory-based configuration
+#   - Security hardening
+#   - Performance optimization
+#   - Monitoring setup
+#   - Backup configuration
+#
+# Examples:
+#   ./install_postgres.sh --version 16
+#   ./install_postgres.sh --no-firewall --version 15
+#
+# Note: Requires root privileges
+# =============================================================================
 
 set -euo pipefail
 

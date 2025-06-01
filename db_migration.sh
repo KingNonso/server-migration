@@ -1,13 +1,42 @@
 #!/bin/bash
 
-# Simple PostgreSQL Migration Script - Source to Destination
-# Focused on direct table and data copying
-
-# Usage: ./db_migration.sh [options]
+# =============================================================================
+# POSTGRESQL DATABASE MIGRATION SCRIPT
+# =============================================================================
+#
+# Description:
+#   Efficient PostgreSQL database migration tool that performs:
+#   - Direct table and data copying using pg_dump/psql
+#   - Automatic database creation with proper encoding
+#   - Version compatibility checks
+#   - Progress monitoring and reporting
+#
+# Usage:
+#   ./db_migration.sh [options] [source_host] [dest_host]
+#
+# Arguments:
+#   source_host     Source server hostname/IP (required)
+#   dest_host       Destination server hostname/IP (required)
+#
 # Options:
 #   -s, --source-password PASSWORD   Source database password
 #   -d, --dest-password PASSWORD     Destination database password
-#   -h, --help                       Display this help message
+#   -p, --source-port PORT          Source PostgreSQL port (default: 5432)
+#   -P, --dest-port PORT            Destination PostgreSQL port (default: 5432)
+#   -u, --source-user USER          Source PostgreSQL user (default: postgres)
+#   -U, --dest-user USER            Destination PostgreSQL user (default: postgres)
+#   -v, --verbose                   Show detailed progress
+#   -h, --help                      Display this help message
+#
+# Examples:
+#   ./db_migration.sh -s mypass -d mypass 192.168.1.10 192.168.1.20
+#   ./db_migration.sh -v -p 5433 -P 5432 old-server new-server
+#
+# Notes:
+#   - Requires PostgreSQL client tools (psql, pg_dump) on local machine
+#   - Source and destination servers must be accessible
+#   - Password can be set via PGPASSWORD environment variable
+# =============================================================================
 
 # Don't exit on error, we'll handle errors manually
 set +e
@@ -20,7 +49,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration variables - MODIFY THESE
-SOURCE_HOST="167.99.196.192"
+SOURCE_HOST="178.128.169.33"
 SOURCE_PORT="5432"
 SOURCE_USER="postgres"
 SOURCE_DB_NAME="all"  # Set to "all" to migrate all databases

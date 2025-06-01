@@ -1,7 +1,35 @@
 #!/bin/bash
 
 # =============================================================================
-# NGINX SYMLINK AND MODULE REPAIR SCRIPT
+# NGINX CONFIGURATION REPAIR AND MODULE MANAGEMENT SCRIPT
+# =============================================================================
+#
+# Description:
+#   Comprehensive Nginx configuration repair tool that handles:
+#   - Configuration validation and repair
+#   - Module detection and installation
+#   - Symlink management and repair
+#   - Service monitoring and recovery
+#
+# Usage:
+#   ./nginx.sh [command] [options]
+#
+# Commands:
+#   repair    - Attempt to repair Nginx configuration and modules
+#   check     - Check configuration and module status
+#   status    - Show current Nginx service status
+#
+# Options:
+#   --verbose          Show detailed output
+#   --no-backup        Skip configuration backup
+#   --force-reinstall  Force Nginx reinstallation
+#
+# Examples:
+#   ./nginx.sh repair --verbose
+#   ./nginx.sh check
+#   ./nginx.sh status
+#
+# Note: This script requires root privileges
 # =============================================================================
 # This script detects and fixes broken symlinks, missing modules, and 
 # configuration issues in nginx installations
