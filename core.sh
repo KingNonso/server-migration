@@ -515,7 +515,7 @@ migrate_nginx() {
     fi
     
     # Stop nginx if running
-    systemctl stop nginx 2>/dev/null || true
+    # systemctl stop nginx 2>/dev/null || true
     
     # Create nginx backup
     if [[ -d /etc/nginx ]]; then
@@ -554,7 +554,7 @@ migrate_nginx() {
         systemctl start nginx
     else
         error "Nginx configuration is invalid. Please check manually."
-        systemctl stop nginx
+        # systemctl stop nginx
     fi
 }
 
@@ -581,7 +581,7 @@ migrate_uwsgi() {
     fi
     
     # Stop uwsgi services
-    systemctl stop uwsgi* 2>/dev/null || true
+    # systemctl stop uwsgi* 2>/dev/null || true
     
     # Sync uwsgi configurations
     for path in "${UWSGI_PATHS[@]}"; do
