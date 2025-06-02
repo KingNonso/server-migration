@@ -343,8 +343,11 @@ migrate_database() {
     
     # First migrate global objects (roles, tablespaces)
     print_status "Migrating global objects..."
+    # Dump global objects but filter out CREATE ROLE statements for existing roles
     PGPASSWORD="$SOURCE_PASSWORD" pg_dumpall -h "$SOURCE_HOST" -p "$SOURCE_PORT" -U "$SOURCE_USER" --globals-only | \
-    PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -p "$DEST_PORT" -U "$DEST_USER" -d postgres
+    grep -v '^CREATE ROLE' | \
+    PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -p "$DEST_PORT" -U "$DEST_USER" -d postgres 2>&1 | \
+    grep -v 'ERROR:.*role.*already exists'
 
     # Get source database size for progress tracking
     local db_size=$(PGPASSWORD="$SOURCE_PASSWORD" psql -h "$SOURCE_HOST" -p "$SOURCE_PORT" -U "$SOURCE_USER" -d "$db_name" -tAc "SELECT pg_database_size('$db_name')")
