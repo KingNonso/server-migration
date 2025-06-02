@@ -382,7 +382,13 @@ migrate_database() {
 
     # Validate dump file
     if [ $dump_result -eq 0 ] && [ -f "$dump_file" ]; then
-        local dump_size=$(stat -f%z "$dump_file")
+        # Get file size in a cross-platform way (works on both macOS and Linux)
+        local dump_size
+        if [[ "$(uname)" == "Darwin" ]]; then
+            dump_size=$(stat -f%z "$dump_file")
+        else
+            dump_size=$(stat --format=%s "$dump_file")
+        fi
         print_status "Dump file size: $(numfmt --to=iec-i --suffix=B $dump_size)"
         
         if [ $dump_size -eq 0 ]; then
