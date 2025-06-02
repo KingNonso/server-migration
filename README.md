@@ -138,6 +138,84 @@ SOURCE_PORT="22"
 ./nginx.sh repair
 ```
 
+## How to Configure PostgreSQL 12 on Ubuntu to Accept Worldwide Connections
+
+### 1. Edit `postgresql.conf`
+
+Open the PostgreSQL configuration file:
+
+```bash
+sudo nano /etc/postgresql/12/main/postgresql.conf
+```
+
+Find the following line:
+
+```conf
+#listen_addresses = 'localhost'
+```
+
+Change it to:
+
+```conf
+listen_addresses = '*'
+```
+
+### 2. Edit `pg_hba.conf`
+
+Open the client authentication file:
+
+```bash
+sudo nano /etc/postgresql/12/main/pg_hba.conf
+```
+
+Add the following line at the end to allow all IPs to connect:
+
+```conf
+host    all             all             0.0.0.0/0               md5
+```
+
+_Note: Use `scram-sha-256` if your setup uses more secure authentication._
+
+### 3. Restart PostgreSQL
+
+Apply changes by restarting the PostgreSQL service:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+### 4. Allow PostgreSQL Port Through Firewall
+
+If using UFW:
+
+```bash
+sudo ufw allow 5432/tcp
+```
+
+### 5. Optional: Confirm Listening
+
+Check if PostgreSQL is listening on port 5432:
+
+```bash
+sudo netstat -tuln | grep 5432
+```
+
+Or:
+
+```bash
+ss -tuln | grep 5432
+```
+
+### ⚠️ Security Warning
+
+Opening PostgreSQL to the whole world (`0.0.0.0/0`) is **not recommended** for production without:
+
+- Strong passwords or certificate-based auth
+- IP whitelisting or VPN
+- Encrypted connections (TLS/SSL)
+
+Restrict to known IPs if possible.
+
 ## Error Handling
 
 - All scripts include error logging

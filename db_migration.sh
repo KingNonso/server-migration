@@ -60,17 +60,31 @@ DEST_USER="postgres"
 DEST_DB_NAME="$SOURCE_DB_NAME"  # Will be same as source unless specified
 
 # Parse command line arguments
-SOURCE_PASSWORD="postgres"
-DEST_PASSWORD="F1SVAIVT37NlVFNaLc7bi+oGXumXXbvx9rcQt0aaGpM="
+SOURCE_PASSWORD=""
+DEST_PASSWORD=""
+VERBOSE=false
 
 # Function to display help message
 show_help() {
-    echo "Usage: $0 [options]"
+    echo "Usage: $0 [options] source_host dest_host"
+    echo ""
+    echo "Arguments:"
+    echo "  source_host     Source server hostname/IP (required)"
+    echo "  dest_host       Destination server hostname/IP (required)"
+    echo ""
     echo "Options:"
     echo "  -s, --source-password PASSWORD   Source database password"
     echo "  -d, --dest-password PASSWORD     Destination database password"
-    echo "  -h, --help                       Display this help message"
-    exit 0
+    echo "  -p, --source-port PORT          Source PostgreSQL port (default: 5432)"
+    echo "  -P, --dest-port PORT            Destination PostgreSQL port (default: 5432)"
+    echo "  -u, --source-user USER          Source PostgreSQL user (default: postgres)"
+    echo "  -U, --dest-user USER            Destination PostgreSQL user (default: postgres)"
+    echo "  -v, --verbose                   Show detailed progress"
+    echo "  -h, --help                      Display this help message"
+    echo ""
+    echo "Example:"
+    echo "  $0 -s mypass -d mypass -p 5433 old-server new-server"
+    exit 1
 }
 
 # Parse command line arguments
@@ -84,15 +98,52 @@ while [[ $# -gt 0 ]]; do
             DEST_PASSWORD="$2"
             shift 2
             ;;
+        -p|--source-port)
+            SOURCE_PORT="$2"
+            shift 2
+            ;;
+        -P|--dest-port)
+            DEST_PORT="$2"
+            shift 2
+            ;;
+        -u|--source-user)
+            SOURCE_USER="$2"
+            shift 2
+            ;;
+        -U|--dest-user)
+            DEST_USER="$2"
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
         -h|--help)
             show_help
             ;;
-        *)
+        -*)
             echo "Unknown option: $1"
             show_help
             ;;
+        *)
+            if [ -z "$SOURCE_HOST" ]; then
+                SOURCE_HOST="$1"
+            elif [ -z "$DEST_HOST" ]; then
+                DEST_HOST="$1"
+            else
+                echo "Error: Unexpected argument '$1'"
+                show_help
+            fi
+            shift
+            ;;
     esac
 done
+
+# Validate required arguments
+if [ -z "$SOURCE_HOST" ] || [ -z "$DEST_HOST" ]; then
+    echo "Error: Both source_host and dest_host are required"
+    show_help
+fi
 
 # Simple logging setup
 LOG_DIR="/tmp/postgres_migration_$(date +%Y%m%d_%H%M%S)"
@@ -287,32 +338,101 @@ migrate_database() {
         fi
     done <<< "$extensions"
     
-    # Direct database migration using pg_dump and psql
-    print_status "Migrating database '$db_name' using direct pg_dump and psql piping..."
+    # Direct database migration using pg_dump and pg_restore
+    print_status "Migrating database '$db_name'..."
     
-    # Build the migration command
-    local migration_cmd="PGPASSWORD=\"$SOURCE_PASSWORD\" pg_dump \
+    # First migrate global objects (roles, tablespaces)
+    print_status "Migrating global objects..."
+    PGPASSWORD="$SOURCE_PASSWORD" pg_dumpall -h "$SOURCE_HOST" -p "$SOURCE_PORT" -U "$SOURCE_USER" --globals-only | \
+    PGPASSWORD="$DEST_PASSWORD" psql -h "$DEST_HOST" -p "$DEST_PORT" -U "$DEST_USER" -d postgres
+
+    # Get source database size for progress tracking
+    local db_size=$(PGPASSWORD="$SOURCE_PASSWORD" psql -h "$SOURCE_HOST" -p "$SOURCE_PORT" -U "$SOURCE_USER" -d "$db_name" -tAc "SELECT pg_database_size('$db_name')")
+    print_status "Database size: $(numfmt --to=iec-i --suffix=B $db_size)"
+
+    # Create temporary directory with cleanup trap
+    local tmp_dir=$(mktemp -d)
+    trap 'rm -rf "$tmp_dir"' EXIT
+    local dump_file="$tmp_dir/${db_name}_dump"
+
+    # Build and execute dump command with progress tracking
+    print_status "Dumping database..."
+    local dump_cmd="PGPASSWORD=\"$SOURCE_PASSWORD\" pg_dump \
         -h \"$SOURCE_HOST\" \
         -p \"$SOURCE_PORT\" \
         -U \"$SOURCE_USER\" \
         -d \"$db_name\" \
-        --clean --if-exists \
-        --schema=public \
-        --no-owner \
-        --no-acl | \
-        PGPASSWORD=\"$DEST_PASSWORD\" psql \
-        -h \"$DEST_HOST\" \
-        -p \"$DEST_PORT\" \
-        -U \"$DEST_USER\" \
-        -d \"$db_name\""
-    
+        --clean \
+        --if-exists \
+        --create \
+        --format=custom \
+        -Z 9 \
+        -F c \
+        -b \
+        -v \
+        -f \"$dump_file\""
+
     # Log the command (without passwords)
-    local log_cmd=$(echo "$migration_cmd" | sed "s/PGPASSWORD=\"[^\"]*\"/PGPASSWORD=\"******\"/g")
+    local log_cmd=$(echo "$dump_cmd" | sed "s/PGPASSWORD=\"[^\"]*\"/PGPASSWORD=\"******\"/g")
     print_status "Running: $log_cmd"
-    
-    # Execute the command
-    local migration_result=0
-    eval "$migration_cmd" 2>> "$ERROR_LOG" || migration_result=$?
+
+    # Execute dump with progress tracking
+    local dump_result=0
+    eval "$dump_cmd" 2>> "$ERROR_LOG" || dump_result=$?
+
+    # Validate dump file
+    if [ $dump_result -eq 0 ] && [ -f "$dump_file" ]; then
+        local dump_size=$(stat -f%z "$dump_file")
+        print_status "Dump file size: $(numfmt --to=iec-i --suffix=B $dump_size)"
+        
+        if [ $dump_size -eq 0 ]; then
+            print_error "Dump file is empty. Migration failed."
+            return 1
+        fi
+
+        # Build and execute restore command
+        print_status "Restoring database..."
+        local restore_cmd="PGPASSWORD=\"$DEST_PASSWORD\" pg_restore \
+            -h \"$DEST_HOST\" \
+            -p \"$DEST_PORT\" \
+            -U \"$DEST_USER\" \
+            -d postgres \
+            --clean \
+            --if-exists \
+            --create \
+            -v \
+            \"$dump_file\""
+
+        # Log the command (without passwords)
+        local log_cmd=$(echo "$restore_cmd" | sed "s/PGPASSWORD=\"[^\"]*\"/PGPASSWORD=\"******\"/g")
+        print_status "Running: $log_cmd"
+
+        # Execute restore with retry logic
+        local restore_result=0
+        local retry_count=0
+        local max_retries=3
+
+        while [ $retry_count -lt $max_retries ]; do
+            eval "$restore_cmd" 2>> "$ERROR_LOG" && break
+            restore_result=$?
+            ((retry_count++))
+            
+            if [ $retry_count -lt $max_retries ]; then
+                print_warning "Restore attempt $retry_count failed. Retrying in 5 seconds..."
+                sleep 5
+            fi
+        done
+
+        if [ $retry_count -eq $max_retries ]; then
+            print_error "Failed to restore database after $max_retries attempts"
+            return 1
+        fi
+
+        local migration_result=$restore_result
+    else
+        print_error "Failed to create dump file"
+        return 1
+    fi
     
     if [ $migration_result -eq 0 ]; then
         print_success "Database '$db_name' migrated successfully"
