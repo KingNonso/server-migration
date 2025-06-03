@@ -38,7 +38,7 @@
 #   - Password can be set via PGPASSWORD environment variable
 # =============================================================================
 
-# Exit on error
+# Do not exit automatically on error – we handle errors manually
 set +e
 
 # Color codes for output
@@ -51,7 +51,7 @@ NC='\033[0m' # No Color
 # Default configuration variables
 SOURCE_HOST=""
 SOURCE_PORT="5432"
-SOURCE_USER="postgres"
+SOURCE_USER="migration_user"
 SOURCE_PASSWORD=""
 SOURCE_DB_NAME="all"  # Set to "all" to migrate all databases
 
@@ -153,8 +153,8 @@ if [ -z "$SOURCE_HOST" ] || [ -z "$DEST_HOST" ]; then
     show_help
 fi
 
-# Set default destination database name if not specified
-if [ -z "$DEST_DB_NAME" ]; then
+# Set default destination database name only if a single database is specified
+if [ -z "$DEST_DB_NAME" ] && [ "$SOURCE_DB_NAME" != "all" ]; then
     DEST_DB_NAME="$SOURCE_DB_NAME"
 fi
 
@@ -390,7 +390,8 @@ migrate_database() {
     print_status "Migrating database '$source_db_name' using pg_dump -> psql pipeline..."
     
     # Build the migration command - dump ALL schemas, not just public
-    local dump_file="/tmp/migration_${source_db_name}_$(date +%s).sql"
+    local dump_file=$(mktemp "/tmp/migration_${source_db_name}_XXXXXX.sql")
+    chmod 600 "$dump_file"
     
     print_status "Creating database dump..."
     if PGPASSWORD="$SOURCE_PASSWORD" pg_dump \
@@ -400,7 +401,6 @@ migrate_database() {
         -d "$source_db_name" \
         --clean \
         --if-exists \
-        --create \
         --verbose \
         --no-owner \
         --no-privileges \
@@ -418,7 +418,7 @@ migrate_database() {
         -h "$DEST_HOST" \
         -p "$DEST_PORT" \
         -U "$DEST_USER" \
-        -d postgres \
+        -d "$dest_db_name" \
         -f "$dump_file" \
         -v ON_ERROR_STOP=0 2>> "$ERROR_LOG"; then
         print_success "Database restored successfully"
