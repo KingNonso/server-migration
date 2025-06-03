@@ -51,7 +51,7 @@ NC='\033[0m' # No Color
 # Default configuration variables
 SOURCE_HOST=""
 SOURCE_PORT="5432"
-SOURCE_USER="migration_user"
+SOURCE_USER="postgres"
 SOURCE_PASSWORD=""
 SOURCE_DB_NAME="all"  # Set to "all" to migrate all databases
 
